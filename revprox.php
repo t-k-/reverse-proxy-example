@@ -15,17 +15,38 @@ if (!function_exists('getallheaders'))
 	}
 }
 
+function getCookieHeaders()
+{
+	$CokHeaders = [];
+	$allHeaders = getallheaders();
+	foreach ($allHeaders as $hf) {
+		if (preg_match("/^Cookie:/i", $hf)) {
+			array_push($CokHeaders, $hf);
+		}
+	}
+	return $CokHeaders;
+}
+
 /* create curl POST fields from $_POST and $_FILES. */
 function curl_postfields()
 {
 	$file_array = array();
 	foreach ($_FILES as $k => $v) {
-		$file_array[$k] = curl_file_create(
-			$v['tmp_name'], // file path
-			$v['type'],     // MIME type
-			$v['name']      // upload name
-		);
+		if (is_array($v['tmp_name'])) {
+			$file_array[$k] = curl_file_create(
+				$v['tmp_name'][0], // file path
+				$v['type'][0],     // MIME type
+				$v['name'][0]      // upload name
+			);
+		} else {
+			$file_array[$k] = curl_file_create(
+				$v['tmp_name'], // file path
+				$v['type'],     // MIME type
+				$v['name']      // upload name
+			);
+		}
 	}
+
 	return array_merge($_POST, $file_array);
 }
 
@@ -72,7 +93,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$raw_post = file_get_contents("php://input");
 	if ('' == $raw_post) {
 		$post = curl_postfields();
+
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, getCookieHeaders());
 		$ret_header_proxy = false;
 	} else {
 		curl_setopt($ch, CURLOPT_POSTFIELDS, $raw_post);
